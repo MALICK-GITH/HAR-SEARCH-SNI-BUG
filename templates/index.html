@@ -412,6 +412,125 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
+        /* Responsive Design for Mobile/Android */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .header p {
+                font-size: 0.9em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .upload-section {
+                padding: 30px;
+            }
+
+            .upload-icon {
+                font-size: 3em;
+            }
+
+            .upload-text {
+                font-size: 1em;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .action-buttons {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .btn {
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .tab {
+                padding: 8px 12px;
+                font-size: 0.85em;
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                font-size: 0.85em;
+            }
+
+            th, td {
+                padding: 8px 6px;
+            }
+
+            .filter-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .filter-group select {
+                width: 100%;
+            }
+
+            .modal-content {
+                width: 95%;
+                max-height: 90vh;
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .tab {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+
+            .btn {
+                padding: 8px 15px;
+                font-size: 0.85em;
+            }
+
+            table {
+                font-size: 0.8em;
+            }
+
+            th, td {
+                padding: 6px 4px;
+            }
+        }
     </style>
 </head>
 <body>
