@@ -1,0 +1,2392 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAR Reader - Web Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-section:hover {
+            background: #f8f9ff;
+            border-color: #764ba2;
+        }
+
+        .upload-section.dragover {
+            background: #f0f0ff;
+            border-color: #764ba2;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .summary-card h3 {
+            font-size: 2em;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .summary-card p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        th {
+            background: #f8f9ff;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-200 {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-300 {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-400 {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-500 {
+            background: #f5c6cb;
+            color: #721c24;
+        }
+
+        .method-badge {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .method-GET {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .method-POST {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .method-PUT {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .method-DELETE {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .method-OPTIONS {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .chart-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 15px;
+        }
+
+        .chart-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bar-label {
+            min-width: 150px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .bar {
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 5px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            color: white;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            display: none;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-section {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 8px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95em;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .url-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .domain-cell {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 HAR Reader</h1>
+            <p>Analysez vos fichiers HTTP Archive directement dans le navigateur</p>
+        </div>
+
+        <div class="content">
+            <!-- Upload Section -->
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Glissez-déposez votre fichier HAR ici</div>
+                <div class="upload-hint">ou cliquez pour sélectionner un fichier (.har, .har.gz, .json)</div>
+                <input type="file" id="fileInput" accept=".har,.har.gz,.json,.gz">
+            </div>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyse en cours...</p>
+            </div>
+
+            <!-- Error -->
+            <div class="error" id="error"></div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection">
+                <!-- Summary Cards -->
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h3 id="totalRequests">0</h3>
+                        <p>Requêtes</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3 id="totalSize">0</h3>
+                        <p>Taille (octets)</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3 id="totalTime">0</h3>
+                        <p>Temps (ms)</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3 id="uniqueDomains">0</h3>
+                        <p>Domaines</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="exportCSV()">📊 Exporter CSV</button>
+                    <button class="btn btn-primary" onclick="extractBodies()">📦 Extraire Corps</button>
+                    <button class="btn btn-primary" onclick="runFullAnalysis()">🔬 Analyse Complète</button>
+                    <button class="btn btn-primary" onclick="analyzeDomains()">🌐 Analyser Domaines</button>
+                    <button class="btn btn-secondary" onclick="saveCurrentAnalysis()">💾 Sauvegarder</button>
+                    <button class="btn btn-secondary" onclick="analyzeNetwork()">🔒 Analyser Réseau</button>
+                    <button class="btn btn-secondary" onclick="generateNetworkAlert()">📧 Générer Alerte</button>
+                    <button class="btn btn-secondary" onclick="analyzePorts()">🔌 Analyser Ports</button>
+                    <button class="btn btn-secondary" onclick="analyzeUserAgents()">👤 Analyser User Agents</button>
+                    <button class="btn btn-secondary" onclick="analyzeNetworkDeep()">🔬 Analyse Réseau Complète</button>
+                    <button class="btn btn-secondary" onclick="showJSModal()">🔍 Analyser JS</button>
+                    <button class="btn btn-secondary" onclick="showSearchModal()">🔍 Recherche Avancée</button>
+                    <button class="btn btn-secondary" onclick="showINMUXModal()">🌐 INMUX</button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('entries')">Requêtes</button>
+                    <button class="tab" onclick="showTab('status')">Status Codes</button>
+                    <button class="tab" onclick="showTab('domains')">Domaines</button>
+                    <button class="tab" onclick="showTab('methods')">Méthodes</button>
+                    <button class="tab" onclick="showTab('content')">Content Types</button>
+                    <button class="tab" onclick="showTab('terrain')">Terrain</button>
+                    <button class="tab" onclick="showTab('security')">🔒 Sécurité</button>
+                    <button class="tab" onclick="showTab('performance')">⚡ Performance</button>
+                    <button class="tab" onclick="showTab('patterns')">🎯 Patterns</button>
+                    <button class="tab" onclick="showTab('history')">📚 Historique</button>
+                </div>
+
+                <!-- Entries Tab -->
+                <div class="tab-content active" id="entriesTab">
+                    <div class="filter-section">
+                        <div class="filter-group">
+                            <label>Filtrer par:</label>
+                            <select id="domainFilter" onchange="filterEntries()">
+                                <option value="">Tous les domaines</option>
+                            </select>
+                            <select id="statusFilter" onchange="filterEntries()">
+                                <option value="">Tous les status</option>
+                                <option value="200">200 OK</option>
+                                <option value="304">304 Not Modified</option>
+                                <option value="404">404 Not Found</option>
+                                <option value="500">500 Server Error</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Méthode</th>
+                                    <th>URL</th>
+                                    <th>Domaine</th>
+                                    <th>Status</th>
+                                    <th>Type</th>
+                                    <th>Taille</th>
+                                    <th>Temps (ms)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="entriesTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Status Codes Tab -->
+                <div class="tab-content" id="statusTab">
+                    <div class="chart-container">
+                        <div class="chart-title">Distribution des Status Codes</div>
+                        <div class="bar-chart" id="statusChart"></div>
+                    </div>
+                </div>
+
+                <!-- Domains Tab -->
+                <div class="tab-content" id="domainsTab">
+                    <div class="chart-container">
+                        <div class="chart-title">🌐 Analyse de Domaines</div>
+                        <div id="domainsSummary" style="margin-bottom: 20px;"></div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Domaine</th>
+                                        <th>Requêtes</th>
+                                        <th>Taille Totale</th>
+                                        <th>Temps Moyen</th>
+                                        <th>HTTPS</th>
+                                        <th>Status Codes</th>
+                                        <th>Content Types</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="domainsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Methods Tab -->
+                <div class="tab-content" id="methodsTab">
+                    <div class="chart-container">
+                        <div class="chart-title">Distribution des Méthodes HTTP</div>
+                        <div class="bar-chart" id="methodsChart"></div>
+                    </div>
+                </div>
+
+                <!-- Content Types Tab -->
+                <div class="tab-content" id="contentTab">
+                    <div class="chart-container">
+                        <div class="chart-title">Types de Contenu</div>
+                        <div class="bar-chart" id="contentChart"></div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="terrainTab">
+                    <div id="terrainSummary" style="margin-bottom: 20px;"></div>
+                    <div id="hostProxyTlsSummary" style="margin-bottom: 20px;"></div>
+                    <div class="chart-container">
+                        <div class="chart-title">Cibles Free Surf les Plus Suspectes</div>
+                        <div style="font-size: 0.9em; color: #666; margin-bottom: 15px;">
+                            Vue passive fondée sur le HAR: proxy, VPN, captive portal, DoH, headers et ports réellement observés.
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Domaine</th>
+                                        <th>Score</th>
+                                        <th>Confiance</th>
+                                        <th>Sévérité</th>
+                                        <th>Indicateurs</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="freeSurfTargetsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">Méthodes HTTP Observées</div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Méthode</th>
+                                        <th>Occurrences</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="httpMethodsObservedTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">Ports Observés dans le HAR</div>
+                        <div id="portsObservedNote" style="font-size: 0.9em; color: #666; margin-bottom: 15px;"></div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Port</th>
+                                        <th>Protocole</th>
+                                        <th>Domaine</th>
+                                        <th>Connexions</th>
+                                        <th>Suspicion</th>
+                                        <th>Risque</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="portsObservedTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">Scan de Ports Actifs (NMAP)</div>
+                        <div style="font-size: 0.9em; color: #666; margin-bottom: 15px;">
+                            Scan actif des ports d'une cible (nécessite une clé API HackerTarget).
+                        </div>
+                        <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="activePortScanTarget" placeholder="Domaine ou IP (ex: google.com)" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <button onclick="runActivePortScan()" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                Scanner Ports
+                            </button>
+                            <button onclick="runAfricanPortScan()" style="padding: 10px 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                Scan Afrique
+                            </button>
+                        </div>
+                        <div id="activePortScanResults" style="margin-top: 15px;"></div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">Anomalies Host / Proxy / TLS</div>
+                        <div id="hostProxyTlsNote" style="font-size: 0.9em; color: #666; margin-bottom: 15px;"></div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Domaine</th>
+                                        <th>Score</th>
+                                        <th>Confiance</th>
+                                        <th>Preuve</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hostProxyTlsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Tab -->
+                <div class="tab-content" id="securityTab">
+                    <div class="chart-container">
+                        <div class="chart-title">🔒 Analyse de Sécurité</div>
+                        <div id="securityScoreCard" style="display: none; margin-bottom: 20px; padding: 25px; border-radius: 15px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            <div style="font-size: 4em; font-weight: bold;" id="securityScore">0</div>
+                            <div style="font-size: 2em; font-weight: bold;" id="securityGrade">A</div>
+                            <div style="opacity: 0.9;">Score de Sécurité Global</div>
+                        </div>
+                        <div id="securitySummary" style="margin-bottom: 20px;"></div>
+                        <div id="owaspMapping" style="margin-bottom: 20px;"></div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Sévérité</th>
+                                        <th>Catégorie</th>
+                                        <th>Titre</th>
+                                        <th>Description</th>
+                                        <th>Recommandation</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="securityTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Tab -->
+                <div class="tab-content" id="performanceTab">
+                    <div class="chart-container">
+                        <div class="chart-title">⚡ Analyse de Performance</div>
+                        <div id="performanceSummary" style="margin-bottom: 20px;"></div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Sévérité</th>
+                                        <th>Catégorie</th>
+                                        <th>Titre</th>
+                                        <th>Description</th>
+                                        <th>Valeur</th>
+                                        <th>Recommandation</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="performanceTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patterns Tab -->
+                <div class="tab-content" id="patternsTab">
+                    <div class="chart-container">
+                        <div class="chart-title">🎯 Détection de Patterns Suspects</div>
+                        <div id="patternsSummary" style="margin-bottom: 20px;"></div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Description</th>
+                                        <th>Entrée #</th>
+                                        <th>Texte Matché</th>
+                                        <th>Contexte</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="patternsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div class="tab-content" id="historyTab">
+                    <div class="chart-container">
+                        <div class="chart-title">📚 Historique des Analyses</div>
+                        <div id="historyStats" style="margin-bottom: 20px;"></div>
+                        <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                            <button onclick="loadHistory()" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                🔄 Actualiser
+                            </button>
+                            <input type="text" id="historySearch" placeholder="Rechercher par nom de fichier..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <button onclick="searchHistory()" style="padding: 10px 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                🔍 Rechercher
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fichier</th>
+                                        <th>Date</th>
+                                        <th>Requêtes</th>
+                                        <th>Domaines</th>
+                                        <th>Score Sécurité</th>
+                                        <th>Free Surf</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div id="searchModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%;">
+            <h2 style="margin-bottom: 20px;">🔍 Recherche Avancée</h2>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Requête:</label>
+                <input type="text" id="searchQuery" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Type de recherche:</label>
+                <select id="searchType" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                    <option value="all">Tout</option>
+                    <option value="url">URL</option>
+                    <option value="method">Méthode</option>
+                    <option value="header">Headers</option>
+                    <option value="body">Body</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="hideSearchModal()">Annuler</button>
+                <button class="btn btn-primary" onclick="performSearch()">Rechercher</button>
+            </div>
+            <div id="searchResults" style="margin-top: 20px; max-height: 300px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <!-- JavaScript Analysis Modal -->
+    <div id="jsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 20px;">🔍 Analyse de Code JavaScript</h2>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Code JavaScript:</label>
+                <textarea id="jsCode" rows="10" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: monospace;" placeholder="Collez votre code JavaScript ici..."></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="hideJSModal()">Annuler</button>
+                <button class="btn btn-primary" onclick="analyzeJavaScriptCode()">Analyser</button>
+            </div>
+            <div id="jsResults" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <!-- INMUX Modal -->
+    <div id="inmuxModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 20px;">🌐 INMUX - Information Gathering</h2>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Cible (Domaine ou IP):</label>
+                <input type="text" id="inmuxTarget" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;" placeholder="ex: example.com ou 192.168.1.1">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Outil:</label>
+                <select id="inmuxTool" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                    <option value="dns">DNS Lookup</option>
+                    <option value="reverse-dns">Reverse DNS Lookup</option>
+                    <option value="whois">Whois Lookup</option>
+                    <option value="geoip">GeoIP Lookup</option>
+                    <option value="host-finder">Host Finder</option>
+                    <option value="http-headers">HTTP Headers</option>
+                    <option value="host-dns">Host DNS Finder</option>
+                    <option value="port-scan">Port Scanner</option>
+                    <option value="subnet">Subnet Lookup</option>
+                    <option value="zone-transfer">Zone Transfer</option>
+                    <option value="extract-links">Extract Links</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="hideINMUXModal()">Annuler</button>
+                <button class="btn btn-primary" onclick="runINMUX()">Exécuter</button>
+            </div>
+            <div id="inmuxResults" style="margin-top: 20px;">
+                <pre id="inmuxOutput" style="background: #f8f9ff; padding: 15px; border-radius: 8px; white-space: pre-wrap; word-wrap: break-word; font-family: monospace; font-size: 0.9em; max-height: 400px; overflow-y: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFile = null;
+        let currentAnalysisFilename = null;
+        let currentAnalysisFileSize = 0;
+        let currentData = null;
+        let allEntries = [];
+        let analysisReport = null;
+        let networkTerrainData = null;
+        let domainsAnalysisData = null;
+        let currentAnalysisData = null;
+        const DEBUG_MODE = false;
+
+        function debugLog(...args) {
+            if (DEBUG_MODE && window.console) {
+                console.log(...args);
+            }
+        }
+
+        function cloneData(data) {
+            return data === null || data === undefined
+                ? data
+                : JSON.parse(JSON.stringify(data));
+        }
+
+        function buildMethodRows(methodCounts) {
+            return Object.entries(methodCounts || {}).map(([method, count]) => ({ method, count }));
+        }
+
+        function buildCurrentAnalysisSnapshot() {
+            const analysisData = (currentData && currentData.analysis) || {};
+            const summary = analysisData.summary || {};
+            const methods = analysisData.methods || {};
+            const domains = analysisData.domains || {};
+            const fallbackCurrent = currentAnalysisData || {};
+            const hasData = Boolean(
+                currentData ||
+                analysisReport ||
+                networkTerrainData ||
+                domainsAnalysisData ||
+                Object.keys(fallbackCurrent).length
+            );
+
+            if (!hasData) {
+                return null;
+            }
+
+            return {
+                total_requests: summary.total_requests ?? fallbackCurrent.total_requests ?? 0,
+                summary: cloneData(summary || fallbackCurrent.summary || {}),
+                status_codes: cloneData(analysisData.status_codes || fallbackCurrent.status_codes || {}),
+                methods: cloneData(methods || fallbackCurrent.methods || {}),
+                domains: cloneData(domains || fallbackCurrent.domains || {}),
+                content_types: cloneData(analysisData.content_types || fallbackCurrent.content_types || {}),
+                entries: cloneData(allEntries || fallbackCurrent.entries || []),
+                total_entries: currentData?.total_entries ?? fallbackCurrent.total_entries ?? (allEntries ? allEntries.length : 0),
+                security: cloneData(analysisReport?.security || fallbackCurrent.security || {}),
+                performance: cloneData(analysisReport?.performance || fallbackCurrent.performance || {}),
+                patterns: cloneData(analysisReport?.patterns || fallbackCurrent.patterns || {}),
+                free_surf: cloneData(networkTerrainData?.free_surf || fallbackCurrent.free_surf || {}),
+                host_proxy_tls: cloneData(networkTerrainData?.host_proxy_tls || fallbackCurrent.host_proxy_tls || {}),
+                http_methods: cloneData(
+                    networkTerrainData?.http_methods ||
+                    fallbackCurrent.http_methods || {
+                        total_unique: Object.keys(methods || {}).length,
+                        methods: buildMethodRows(methods || {})
+                    }
+                ),
+                ports: cloneData(networkTerrainData?.ports || fallbackCurrent.ports || {}),
+                user_agents: cloneData(networkTerrainData?.user_agents || fallbackCurrent.user_agents || {}),
+                network_issues: cloneData(networkTerrainData?.network_issues || fallbackCurrent.network_issues || {}),
+                domains_analysis: cloneData(domainsAnalysisData || fallbackCurrent.domains_analysis || null)
+            };
+        }
+
+        function refreshCurrentAnalysisData() {
+            currentAnalysisData = buildCurrentAnalysisSnapshot();
+            return currentAnalysisData;
+        }
+
+        function restoreSavedAnalysis(data) {
+            if (!data) {
+                showError('Aucune analyse sauvegardée à charger');
+                return;
+            }
+
+            currentAnalysisData = cloneData(data);
+
+            const restoredSummary = cloneData(data.summary || {});
+            const restoredDomains = cloneData(data.domains || {});
+            const restoredEntries = Array.isArray(data.entries) ? cloneData(data.entries) : [];
+
+            currentData = {
+                analysis: {
+                    summary: {
+                        total_requests: data.total_requests ?? restoredSummary.total_requests ?? 0,
+                        total_size_bytes: restoredSummary.total_size_bytes ?? 0,
+                        total_time_ms: restoredSummary.total_time_ms ?? 0,
+                        unique_domains: restoredSummary.unique_domains ?? Object.keys(restoredDomains).length
+                    },
+                    status_codes: cloneData(data.status_codes || {}),
+                    methods: cloneData(data.methods || {}),
+                    domains: restoredDomains,
+                    content_types: cloneData(data.content_types || {})
+                },
+                entries: restoredEntries,
+                total_entries: data.total_entries ?? restoredEntries.length
+            };
+
+            allEntries = restoredEntries;
+            analysisReport = (data.security || data.performance || data.patterns) ? {
+                security: cloneData(data.security || {}),
+                performance: cloneData(data.performance || {}),
+                patterns: cloneData(data.patterns || {})
+            } : null;
+            networkTerrainData = (data.free_surf || data.host_proxy_tls || data.http_methods || data.ports || data.user_agents || data.network_issues) ? {
+                free_surf: cloneData(data.free_surf || {}),
+                host_proxy_tls: cloneData(data.host_proxy_tls || {}),
+                http_methods: cloneData(data.http_methods || {}),
+                ports: cloneData(data.ports || {}),
+                user_agents: cloneData(data.user_agents || {}),
+                network_issues: cloneData(data.network_issues || {})
+            } : null;
+            domainsAnalysisData = cloneData(data.domains_analysis || null);
+
+            displayResults(currentData);
+
+            if (domainsAnalysisData) {
+                displayDomainsAnalysis(domainsAnalysisData);
+            }
+            if (analysisReport?.security && Object.keys(analysisReport.security).length > 0) {
+                displaySecurityAnalysis(analysisReport.security);
+            }
+            if (analysisReport?.performance && Object.keys(analysisReport.performance).length > 0) {
+                displayPerformanceAnalysis(analysisReport.performance);
+            }
+            if (analysisReport?.patterns && Object.keys(analysisReport.patterns).length > 0) {
+                displayPatternsAnalysis(analysisReport.patterns);
+            }
+            if (networkTerrainData) {
+                displayTerrainAnalysis(networkTerrainData);
+            }
+
+            const entriesTabButton = document.querySelector('.tab[onclick="showTab(\'entries\')"]');
+            if (entriesTabButton) {
+                entriesTabButton.click();
+            }
+        }
+
+        // Upload Section Click
+        document.getElementById('uploadSection').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        // File Input Change
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Drag and Drop
+        const uploadSection = document.getElementById('uploadSection');
+        
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            currentFile = file;
+            currentAnalysisFilename = file.name;
+            currentAnalysisFileSize = file.size;
+            uploadFile(file);
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('error').classList.remove('active');
+            document.getElementById('resultsSection').classList.remove('active');
+
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                
+                if (data.success) {
+                    currentData = data;
+                    allEntries = data.entries;
+                    analysisReport = null;
+                    networkTerrainData = null;
+                    domainsAnalysisData = null;
+                    currentAnalysisData = null;
+                    refreshCurrentAnalysisData();
+                    displayResults(data);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de l\'upload: ' + error.message);
+            });
+        }
+
+        function displayResults(data) {
+            // Summary
+            const totalRequests = document.getElementById('totalRequests');
+            const totalSize = document.getElementById('totalSize');
+            const totalTime = document.getElementById('totalTime');
+            const uniqueDomains = document.getElementById('uniqueDomains');
+            
+            if (totalRequests) totalRequests.textContent = data.analysis.summary.total_requests;
+            if (totalSize) totalSize.textContent = formatBytes(data.analysis.summary.total_size_bytes);
+            if (totalTime) totalTime.textContent = Math.round(data.analysis.summary.total_time_ms).toLocaleString();
+            if (uniqueDomains) uniqueDomains.textContent = data.analysis.summary.unique_domains;
+
+            // Populate domain filter
+            const domainFilter = document.getElementById('domainFilter');
+            if (domainFilter) {
+                domainFilter.innerHTML = '<option value="">Tous les domaines</option>';
+                Object.keys(data.analysis.domains).forEach(domain => {
+                    const option = document.createElement('option');
+                    option.value = domain;
+                    option.textContent = domain;
+                    domainFilter.appendChild(option);
+                });
+            }
+
+            // Entries table
+            renderEntries(data.entries);
+
+            // Charts
+            renderChart('statusChart', data.analysis.status_codes);
+            renderChart('methodsChart', data.analysis.methods);
+            renderChart('contentChart', data.analysis.content_types);
+
+            // Show results
+            const resultsSection = document.getElementById('resultsSection');
+            if (resultsSection) resultsSection.classList.add('active');
+        }
+
+        function renderEntries(entries) {
+            const tbody = document.getElementById('entriesTable');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+
+            entries.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><span class="method-badge method-${entry.method}">${entry.method}</span></td>
+                    <td class="url-cell" title="${entry.url}">${entry.url}</td>
+                    <td class="domain-cell" title="${entry.domain}">${entry.domain}</td>
+                    <td><span class="status-badge status-${Math.floor(entry.status/100)}00">${entry.status}</span></td>
+                    <td>${entry.content_type.split(';')[0]}</td>
+                    <td>${formatBytes(entry.size)}</td>
+                    <td>${entry.time.toFixed(2)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function filterEntries() {
+            const domainFilter = document.getElementById('domainFilter');
+            const statusFilter = document.getElementById('statusFilter');
+
+            let filtered = allEntries;
+
+            if (domainFilter && domainFilter.value) {
+                filtered = filtered.filter(e => e.domain === domainFilter.value);
+            }
+
+            if (statusFilter && statusFilter.value) {
+                filtered = filtered.filter(e => e.status === parseInt(statusFilter.value));
+            }
+
+            renderEntries(filtered);
+        }
+
+        function renderChart(containerId, data) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            container.innerHTML = '';
+
+            const maxValue = Math.max(...Object.values(data));
+
+            Object.entries(data)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10)
+                .forEach(([label, value]) => {
+                    const percentage = (value / maxValue) * 100;
+                    const item = document.createElement('div');
+                    item.className = 'bar-item';
+                    item.innerHTML = `
+                        <div class="bar-label">${label}</div>
+                        <div class="bar" style="width: ${percentage}%">${value}</div>
+                    `;
+                    container.appendChild(item);
+                });
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function displayTerrainAnalysis(data) {
+            networkTerrainData = data;
+
+            const summary = document.getElementById('terrainSummary');
+            const hostProxyTlsSummary = document.getElementById('hostProxyTlsSummary');
+            const freeSurfTable = document.getElementById('freeSurfTargetsTable');
+            const methodsTable = document.getElementById('httpMethodsObservedTable');
+            const portsTable = document.getElementById('portsObservedTable');
+            const portsNote = document.getElementById('portsObservedNote');
+            const hostProxyTlsNote = document.getElementById('hostProxyTlsNote');
+            const hostProxyTlsTable = document.getElementById('hostProxyTlsTable');
+
+            if (!summary || !hostProxyTlsSummary || !freeSurfTable || !methodsTable || !portsTable || !portsNote || !hostProxyTlsNote || !hostProxyTlsTable) {
+                return;
+            }
+
+            const freeSurf = data.free_surf || {
+                detected: false,
+                verdict: 'Aucun indice solide de Free Surf détecté.',
+                max_score: 0,
+                confidence: 'low',
+                top_targets: []
+            };
+
+            const hostProxyTls = data.host_proxy_tls || {
+                detected: false,
+                total: 0,
+                max_score: 0,
+                confidence: 'low',
+                verdict: 'Aucune anomalie Host / Proxy / TLS forte detectee.',
+                limitation: 'Le HAR ne contient pas le ClientHello TLS brut.',
+                top_findings: []
+            };
+
+            const methodRows = data.http_methods?.methods || [];
+            const portRows = data.ports?.details || [];
+
+            summary.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="background: linear-gradient(135deg, #0f766e 0%, #115e59 100%); padding: 15px; border-radius: 10px; flex: 1; min-width: 180px;">
+                        <div style="font-size: 1.8em; font-weight: bold; color: white;">${freeSurf.max_score || 0}/100</div>
+                        <div style="color: white;">Score Free Surf</div>
+                    </div>
+                    <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; flex: 1; min-width: 180px;">
+                        <div style="font-size: 1.4em; font-weight: bold; color: #333;">${escapeHtml(freeSurf.confidence || 'low')}</div>
+                        <div style="color: #666;">Confiance</div>
+                    </div>
+                    <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; flex: 1; min-width: 180px;">
+                        <div style="font-size: 1.4em; font-weight: bold; color: #333;">${data.http_methods?.total_unique || 0}</div>
+                        <div style="color: #666;">Méthodes HTTP vues</div>
+                    </div>
+                    <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; flex: 1; min-width: 180px;">
+                        <div style="font-size: 1.4em; font-weight: bold; color: #333;">${data.ports?.total || 0}</div>
+                        <div style="color: #666;">Ports observés</div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; padding: 14px 16px; border-radius: 10px; background: ${freeSurf.detected ? '#fff3cd' : '#d4edda'}; color: ${freeSurf.detected ? '#856404' : '#155724'};">
+                    <strong>Verdict:</strong> ${escapeHtml(freeSurf.verdict || 'Aucun verdict disponible.')}
+                </div>
+            `;
+
+            hostProxyTlsSummary.innerHTML = `
+                <div style="padding: 14px 16px; border-radius: 10px; background: ${hostProxyTls.detected ? '#fff3cd' : '#eef2ff'}; color: ${hostProxyTls.detected ? '#856404' : '#334155'};">
+                    <div style="font-weight: 700; margin-bottom: 6px;">Host / Proxy / TLS</div>
+                    <div><strong>Verdict:</strong> ${escapeHtml(hostProxyTls.verdict || 'Aucun verdict disponible.')}</div>
+                    <div><strong>Score max:</strong> ${escapeHtml(hostProxyTls.max_score || 0)}/100 | <strong>Confiance:</strong> ${escapeHtml(hostProxyTls.confidence || 'low')}</div>
+                </div>
+            `;
+
+            if (freeSurf.top_targets && freeSurf.top_targets.length > 0) {
+                freeSurfTable.innerHTML = freeSurf.top_targets.map(target => `
+                    <tr>
+                        <td><strong>${escapeHtml(target.domain)}</strong></td>
+                        <td>${escapeHtml(target.score)}</td>
+                        <td>${escapeHtml(target.confidence)}</td>
+                        <td>${escapeHtml(target.severity)}</td>
+                        <td>${escapeHtml((target.indicators || []).join(' | '))}</td>
+                    </tr>
+                `).join('');
+            } else {
+                freeSurfTable.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #666;">Aucune cible Free Surf hautement suspecte n'a été trouvée dans cette capture.</td>
+                    </tr>
+                `;
+            }
+
+            if (methodRows.length > 0) {
+                methodsTable.innerHTML = methodRows.map(row => `
+                    <tr>
+                        <td><span class="method-badge">${escapeHtml(row.method)}</span></td>
+                        <td>${escapeHtml(row.count)}</td>
+                    </tr>
+                `).join('');
+            } else {
+                methodsTable.innerHTML = `
+                    <tr>
+                        <td colspan="2" style="text-align: center; color: #666;">Aucune méthode HTTP disponible.</td>
+                    </tr>
+                `;
+            }
+
+            portsNote.textContent = data.ports?.note || 'Le HAR montre uniquement les ports utilisés par le trafic capturé.';
+
+            hostProxyTlsNote.textContent = hostProxyTls.limitation || 'Le HAR ne contient pas le handshake TLS brut.';
+
+            if (portRows.length > 0) {
+                portsTable.innerHTML = portRows.map(port => `
+                    <tr>
+                        <td><strong>${escapeHtml(port.port)}</strong></td>
+                        <td>${escapeHtml(port.protocol || '')}</td>
+                        <td>${escapeHtml(port.domain || '')}</td>
+                        <td>${escapeHtml(port.connection_count)}</td>
+                        <td>${port.is_suspicious ? 'Oui' : 'Non'}</td>
+                        <td>${escapeHtml(port.security_risk || 'info')}</td>
+                    </tr>
+                `).join('');
+            } else {
+                portsTable.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #666;">Aucun port observé dans cette capture.</td>
+                    </tr>
+                `;
+            }
+            if (hostProxyTls.top_findings && hostProxyTls.top_findings.length > 0) {
+                hostProxyTlsTable.innerHTML = hostProxyTls.top_findings.map(finding => `
+                    <tr>
+                        <td><strong>${escapeHtml(finding.title)}</strong></td>
+                        <td>${escapeHtml(finding.domain || '')}</td>
+                        <td>${escapeHtml(finding.score)}</td>
+                        <td>${escapeHtml(finding.confidence)}</td>
+                        <td>${escapeHtml(finding.evidence || (finding.indicators || []).join(' | '))}</td>
+                    </tr>
+                `).join('');
+            } else {
+                hostProxyTlsTable.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #666;">Aucune anomalie Host / Proxy / TLS significative n'a ete trouvee dans cette capture.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            const activeButton = document.querySelector(`.tab[onclick="showTab('${tabName}')"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+        }
+
+        function exportCSV() {
+            if (!currentFile) return;
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            fetch('/api/export/csv', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = currentFile.name + '.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => showError('Erreur lors de l\'export: ' + error.message));
+        }
+
+        function extractBodies() {
+            if (!currentFile) return;
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            fetch('/api/extract/bodies', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = currentFile.name + '_bodies.zip';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => showError('Erreur lors de l\'extraction: ' + error.message));
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            if (errorDiv) {
+                errorDiv.textContent = message;
+                errorDiv.classList.add('active');
+            } else {
+                alert('Erreur: ' + message);
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function runFullAnalysis() {
+            if (!currentFile) return;
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/analyze/full', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.success) {
+                    analysisReport = data.report;
+                    refreshCurrentAnalysisData();
+                    displaySecurityAnalysis(data.report.security);
+                    displayPerformanceAnalysis(data.report.performance);
+                    displayPatternsAnalysis(data.report.patterns);
+                    showTab('security');
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de l\'analyse: ' + error.message);
+            });
+        }
+
+        function analyzeDomains() {
+            if (!currentFile) return;
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/analyze/domains', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.success) {
+                    domainsAnalysisData = data.domains;
+                    refreshCurrentAnalysisData();
+                    displayDomainsAnalysis(data.domains);
+                    showTab('domains');
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de l\'analyse des domaines: ' + error.message);
+            });
+        }
+
+        function displayDomainsAnalysis(domainsData) {
+            const summary = document.getElementById('domainsSummary');
+            const table = document.getElementById('domainsTable');
+
+            const totalRequests = Object.values(domainsData).reduce((sum, d) => sum + d.request_count, 0);
+            const totalSize = Object.values(domainsData).reduce((sum, d) => sum + d.total_size, 0);
+            const avgTime = Object.values(domainsData).reduce((sum, d) => sum + d.avg_response_time, 0) / Object.keys(domainsData).length;
+
+            summary.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: white;">${Object.keys(domainsData).length}</div>
+                        <div style="color: white;">Domaines Uniques</div>
+                    </div>
+                    <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #333;">${totalRequests}</div>
+                        <div style="color: #666;">Total Requêtes</div>
+                    </div>
+                    <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #333;">${formatBytes(totalSize)}</div>
+                        <div style="color: #666;">Taille Totale</div>
+                    </div>
+                    <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #333;">${avgTime.toFixed(0)}ms</div>
+                        <div style="color: #666;">Temps Moyen</div>
+                    </div>
+                </div>
+            `;
+
+            table.innerHTML = Object.entries(domainsData).map(([domain, info]) => `
+                <tr>
+                    <td><strong>${domain}</strong></td>
+                    <td>${info.request_count}</td>
+                    <td>${formatBytes(info.total_size)}</td>
+                    <td>${info.avg_response_time.toFixed(2)}ms</td>
+                    <td><span class="status-badge status-${info.is_https ? '200' : '500'}">${info.is_https ? '✓ HTTPS' : '✗ HTTP'}</span></td>
+                    <td>${Object.entries(info.status_codes).map(([code, count]) => `${code}: ${count}`).join(', ')}</td>
+                    <td>${Object.entries(info.content_types).map(([type, count]) => `${type}: ${count}`).join(', ')}</td>
+                </tr>
+            `).join('');
+        }
+
+        function displaySecurityAnalysis(securityData) {
+            const summary = document.getElementById('securitySummary');
+            const table = document.getElementById('securityTable');
+            const scoreCard = document.getElementById('securityScoreCard');
+            const owaspMapping = document.getElementById('owaspMapping');
+
+            // Display security score and grade
+            if (securityData.score !== undefined) {
+                scoreCard.style.display = 'block';
+                document.getElementById('securityScore').textContent = securityData.score;
+                document.getElementById('securityGrade').textContent = securityData.grade;
+                
+                // Change color based on grade
+                const gradeColors = {
+                    'A': 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                    'B': 'linear-gradient(135deg, #17a2b8 0%, #138496 100%)',
+                    'C': 'linear-gradient(135deg, #ffc107 0%, #e0a800 100%)',
+                    'D': 'linear-gradient(135deg, #fd7e14 0%, #e65100 100%)',
+                    'E': 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+                    'F': 'linear-gradient(135deg, #6c757d 0%, #545b62 100%)'
+                };
+                scoreCard.style.background = gradeColors[securityData.grade] || gradeColors['F'];
+            }
+
+            summary.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #721c24;">${securityData.by_severity.critical || 0}</div>
+                        <div style="color: #721c24;">Critiques</div>
+                    </div>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #856404;">${securityData.by_severity.high || 0}</div>
+                        <div style="color: #856404;">Élevées</div>
+                    </div>
+                    <div style="background: #d1ecf1; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #0c5460;">${securityData.by_severity.medium || 0}</div>
+                        <div style="color: #0c5460;">Moyennes</div>
+                    </div>
+                    <div style="background: #d4edda; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #155724;">${securityData.by_severity.low || 0}</div>
+                        <div style="color: #155724;">Faibles</div>
+                    </div>
+                </div>
+            `;
+
+            // Display OWASP mapping
+            if (securityData.owasp_mapping) {
+                const owaspEntries = Object.entries(securityData.owasp_mapping).filter(([_, count]) => count > 0);
+                if (owaspEntries.length > 0) {
+                    owaspMapping.innerHTML = `
+                        <div style="margin-bottom: 15px; font-weight: 600;">🎯 Mapping OWASP Top 10 2021</div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            ${owaspEntries.map(([category, count]) => `
+                                <div style="background: #f8f9ff; padding: 10px 15px; border-radius: 8px; border-left: 4px solid #667eea;">
+                                    <div style="font-weight: 600; font-size: 0.9em;">${category.split(':')[0]}</div>
+                                    <div style="color: #666; font-size: 0.85em;">${count} problème(s)</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    owaspMapping.innerHTML = '';
+                }
+            }
+
+            table.innerHTML = securityData.issues.map(issue => `
+                <tr>
+                    <td><span class="status-badge status-${issue.severity === 'critical' ? '500' : issue.severity === 'high' ? '400' : issue.severity === 'medium' ? '300' : '200'}">${issue.severity}</span></td>
+                    <td>${issue.category}</td>
+                    <td>${issue.title}</td>
+                    <td>${issue.description}</td>
+                    <td>${issue.recommendation}</td>
+                </tr>
+            `).join('');
+        }
+
+        function displayPerformanceAnalysis(performanceData) {
+            const summary = document.getElementById('performanceSummary');
+            const table = document.getElementById('performanceTable');
+
+            summary.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #721c24;">${performanceData.by_severity.critical || 0}</div>
+                        <div style="color: #721c24;">Critiques</div>
+                    </div>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #856404;">${performanceData.by_severity.high || 0}</div>
+                        <div style="color: #856404;">Élevées</div>
+                    </div>
+                    <div style="background: #d1ecf1; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #0c5460;">${performanceData.by_severity.medium || 0}</div>
+                        <div style="color: #0c5460;">Moyennes</div>
+                    </div>
+                    <div style="background: #d4edda; padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: #155724;">${performanceData.by_severity.low || 0}</div>
+                        <div style="color: #155724;">Faibles</div>
+                    </div>
+                </div>
+            `;
+
+            table.innerHTML = performanceData.issues.map(issue => `
+                <tr>
+                    <td><span class="status-badge status-${issue.severity === 'critical' ? '500' : issue.severity === 'high' ? '400' : issue.severity === 'medium' ? '300' : '200'}">${issue.severity}</span></td>
+                    <td>${issue.category}</td>
+                    <td>${issue.title}</td>
+                    <td>${issue.description}</td>
+                    <td>${issue.value.toFixed(2)}</td>
+                    <td>${issue.recommendation}</td>
+                </tr>
+            `).join('');
+        }
+
+        function displayPatternsAnalysis(patternsData) {
+            const summary = document.getElementById('patternsSummary');
+            const table = document.getElementById('patternsTable');
+
+            const topPatterns = Object.entries(patternsData.by_type)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            summary.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; flex: 1;">
+                        <div style="font-size: 2em; font-weight: bold; color: white;">${patternsData.total_matches}</div>
+                        <div style="color: white;">Total Matches</div>
+                    </div>
+                    ${topPatterns.map(([type, count]) => `
+                        <div style="background: #f8f9ff; padding: 15px; border-radius: 10px; flex: 1;">
+                            <div style="font-size: 1.5em; font-weight: bold; color: #333;">${count}</div>
+                            <div style="color: #666;">${type}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            table.innerHTML = patternsData.matches.map(match => `
+                <tr>
+                    <td><span class="method-badge method-GET">${match.pattern_type}</span></td>
+                    <td>${match.description}</td>
+                    <td>#${match.entry_index}</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${match.matched_text}</td>
+                    <td>${match.context}</td>
+                </tr>
+            `).join('');
+        }
+
+        function showSearchModal() {
+            document.getElementById('searchModal').style.display = 'block';
+        }
+
+        function hideSearchModal() {
+            document.getElementById('searchModal').style.display = 'none';
+        }
+
+        function performSearch() {
+            if (!currentFile) return;
+
+            const query = document.getElementById('searchQuery').value;
+            const searchType = document.getElementById('searchType').value;
+
+            if (!query) {
+                showError('Veuillez entrer une requête de recherche');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('query', query);
+            formData.append('search_type', searchType);
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/search', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                
+                if (data.success) {
+                    const resultsDiv = document.getElementById('searchResults');
+                    resultsDiv.innerHTML = `
+                        <div style="margin-bottom: 10px; font-weight: 600;">${data.total_matches} résultats trouvés</div>
+                        ${data.entries.map(entry => `
+                            <div style="padding: 10px; background: #f8f9ff; border-radius: 5px; margin-bottom: 5px;">
+                                <div><strong>${entry.method}</strong> - ${entry.status}</div>
+                                <div style="font-size: 0.9em; color: #666;">${entry.url}</div>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de la recherche: ' + error.message);
+            });
+        }
+
+        function showJSModal() {
+            document.getElementById('jsModal').style.display = 'block';
+        }
+
+        function hideJSModal() {
+            document.getElementById('jsModal').style.display = 'none';
+        }
+
+        function analyzeJavaScriptCode() {
+            const code = document.getElementById('jsCode').value;
+
+            if (!code) {
+                showError('Veuillez entrer du code JavaScript');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+
+            const formData = new FormData();
+            formData.append('code', code);
+
+            fetch('/api/analyze/javascript', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                
+                if (data.success) {
+                    const resultsDiv = document.getElementById('jsResults');
+                    resultsDiv.innerHTML = `
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">🎯 Résumé</div>
+                            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                                <div style="background: #f8d7da; padding: 10px; border-radius: 8px;">
+                                    <div style="font-weight: bold; color: #721c24;">${data.by_severity.critical || 0}</div>
+                                    <div style="color: #721c24;">Critiques</div>
+                                </div>
+                                <div style="background: #fff3cd; padding: 10px; border-radius: 8px;">
+                                    <div style="font-weight: bold; color: #856404;">${data.by_severity.high || 0}</div>
+                                    <div style="color: #856404;">Élevées</div>
+                                </div>
+                                <div style="background: #d1ecf1; padding: 10px; border-radius: 8px;">
+                                    <div style="font-weight: bold; color: #0c5460;">${data.by_severity.medium || 0}</div>
+                                    <div style="color: #0c5460;">Moyennes</div>
+                                </div>
+                                <div style="background: #d4edda; padding: 10px; border-radius: 8px;">
+                                    <div style="font-weight: bold; color: #155724;">${data.by_severity.low || 0}</div>
+                                    <div style="color: #155724;">Faibles</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">📊 Par Catégorie</div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                ${Object.entries(data.by_category).map(([category, count]) => `
+                                    <div style="background: #f8f9ff; padding: 8px 12px; border-radius: 6px; border-left: 4px solid #667eea;">
+                                        <div style="font-weight: 600; font-size: 0.9em;">${category}</div>
+                                        <div style="color: #666; font-size: 0.85em;">${count}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 10px; font-weight: 600;">🔍 Vulnérabilités Détectées (${data.total_vulnerabilities})</div>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            ${data.vulnerabilities.map(vuln => `
+                                <div style="padding: 12px; background: ${vuln.severity === 'critical' ? '#f8d7da' : vuln.severity === 'high' ? '#fff3cd' : vuln.severity === 'medium' ? '#d1ecf1' : '#d4edda'}; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid ${vuln.severity === 'critical' ? '#721c24' : vuln.severity === 'high' ? '#856404' : vuln.severity === 'medium' ? '#0c5460' : '#155724'};">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                        <strong>${vuln.title}</strong>
+                                        <span style="font-size: 0.8em; font-weight: 600;">${vuln.severity.toUpperCase()}</span>
+                                    </div>
+                                    <div style="font-size: 0.9em; color: #666; margin-bottom: 5px;">${vuln.description}</div>
+                                    <div style="font-size: 0.85em; margin-bottom: 5px;">
+                                        <strong>CWE:</strong> ${vuln.cwe_id} | <strong>Ligne:</strong> ${vuln.line_number}
+                                    </div>
+                                    <div style="font-size: 0.85em; margin-bottom: 5px;">
+                                        <strong>Code:</strong> <code style="background: rgba(0,0,0,0.05); padding: 2px 5px; border-radius: 3px;">${vuln.code_snippet}</code>
+                                    </div>
+                                    <div style="font-size: 0.85em;">
+                                        <strong>💡 Recommandation:</strong> ${vuln.recommendation}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de l\'analyse JavaScript: ' + error.message);
+            });
+        }
+
+        function analyzeNetwork() {
+            if (!currentFile) {
+                showError('Veuillez d\'abord charger un fichier HAR');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/analyze/network', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                
+                if (data.success) {
+                    displayTerrainAnalysis({
+                        free_surf: data.free_surf,
+                        host_proxy_tls: data.host_proxy_tls,
+                        http_methods: {
+                            total_unique: Object.keys((currentData && currentData.analysis && currentData.analysis.methods) || {}).length,
+                            methods: Object.entries((currentData && currentData.analysis && currentData.analysis.methods) || {}).map(([method, count]) => ({ method, count }))
+                        },
+                        ports: {
+                            total: 0,
+                            details: [],
+                            note: 'Exécutez "Analyse Réseau Complète" pour voir les ports observés dans le HAR.'
+                        }
+                    });
+                    refreshCurrentAnalysisData();
+                    const freeSurf = data.free_surf || { detected: false, verdict: 'Aucun indice solide de Free Surf détecté.', max_score: 0 };
+                    const hostProxyTls = data.host_proxy_tls || { verdict: 'Aucune anomalie Host / Proxy / TLS forte détectée.', max_score: 0 };
+                    alert(`Analyse réseau terminée!\n\nTotal problèmes: ${data.total_issues}\nCritiques: ${data.by_severity.critical || 0}\nÉlevées: ${data.by_severity.high || 0}\nMoyennes: ${data.by_severity.medium || 0}\nFaibles: ${data.by_severity.low || 0}\n\nFree Surf: ${freeSurf.verdict}\nScore: ${freeSurf.max_score || 0}/100\n\nHost/Proxy/TLS: ${hostProxyTls.verdict}\nScore: ${hostProxyTls.max_score || 0}/100`);
+                    debugLog('Résultats analyse réseau:', data);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de l\'analyse réseau: ' + error.message);
+            });
+        }
+
+        function generateNetworkAlert() {
+            if (!currentFile) {
+                showError('Veuillez d\'abord charger un fichier HAR');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/network/alert-report', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                
+                if (data.success) {
+                    alert(`Rapport d'alerte réseau généré!\n\nTotal problèmes: ${data.total_issues}\n\nRapport:\n${data.report}`);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de la génération du rapport: ' + error.message);
+            });
+        }
+
+        function analyzePorts() {
+            if (!currentFile) {
+                showError('Veuillez d\'abord charger un fichier HAR');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/analyze/ports', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                
+                if (data.success) {
+                    alert(`Analyse des ports terminée!\n\nTotal ports: ${data.total_ports}\nPorts suspects: ${data.suspicious_ports_count}\n\nPar risque:\nCritiques: ${data.by_risk.critical || 0}\nÉlevées: ${data.by_risk.high || 0}\nMoyennes: ${data.by_risk.medium || 0}\nFaibles: ${data.by_risk.low || 0}`);
+                    debugLog('Résultats analyse ports:', data);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de l\'analyse des ports: ' + error.message);
+            });
+        }
+
+        function analyzeUserAgents() {
+            if (!currentFile) {
+                showError('Veuillez d\'abord charger un fichier HAR');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/analyze/user-agents', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                
+                if (data.success) {
+                    alert(`Analyse des User Agents terminée!\n\nTotal User Agents: ${data.total_user_agents}\nBots détectés: ${data.bots_count}\nUser Agents suspects: ${data.suspicious_count}\n\nPar risque:\nCritiques: ${data.by_risk.critical || 0}\nÉlevées: ${data.by_risk.high || 0}\nMoyennes: ${data.by_risk.medium || 0}\nFaibles: ${data.by_risk.low || 0}`);
+                    debugLog('Résultats analyse User Agents:', data);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de l\'analyse des User Agents: ' + error.message);
+            });
+        }
+
+        function analyzeNetworkDeep() {
+            if (!currentFile) {
+                showError('Veuillez d\'abord charger un fichier HAR');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/analyze/network-deep', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                
+                if (data.success) {
+                    displayTerrainAnalysis(data);
+                    refreshCurrentAnalysisData();
+                    const freeSurf = data.free_surf || { detected: false, verdict: 'Aucun indice solide de Free Surf détecté.', max_score: 0 };
+                    const hostProxyTls = data.host_proxy_tls || { verdict: 'Aucune anomalie Host / Proxy / TLS forte détectée.', max_score: 0 };
+                    alert(`Analyse réseau complète terminée!\n\n📊 PROBLÈMES RÉSEAU:\nTotal: ${data.network_issues.total}\n\n🛜 FREE SURF:\nVerdict: ${freeSurf.verdict}\nScore: ${freeSurf.max_score || 0}/100\n\n🔐 HOST / PROXY / TLS:\nVerdict: ${hostProxyTls.verdict}\nScore: ${hostProxyTls.max_score || 0}/100\n\n🔌 PORTS:\nTotal: ${data.ports.total}\nSuspects: ${data.ports.suspicious}\n\n👤 USER AGENTS:\nTotal: ${data.user_agents.total}\nBots: ${data.user_agents.bots}\nSuspects: ${data.user_agents.suspicious}`);
+                    debugLog('Résultats analyse réseau complète:', data);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de l\'analyse réseau complète: ' + error.message);
+            });
+        }
+
+        function showINMUXModal() {
+            document.getElementById('inmuxModal').style.display = 'block';
+        }
+
+        function hideINMUXModal() {
+            document.getElementById('inmuxModal').style.display = 'none';
+        }
+
+        function runActivePortScan() {
+            const target = document.getElementById('activePortScanTarget').value.trim();
+            if (!target) {
+                showError('Veuillez entrer une cible (domaine ou IP)');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('activePortScanResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; color: #666;">Scan en cours...</div>';
+
+            fetch('/api/inmux/active-port-scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ target })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayPortScanResults(data.result, false);
+                } else {
+                    resultsDiv.innerHTML = `<div style="color: #d32f2f; padding: 10px; background: #ffebee; border-radius: 5px;">Erreur: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = `<div style="color: #d32f2f; padding: 10px; background: #ffebee; border-radius: 5px;">Erreur: ${error.message}</div>`;
+            });
+        }
+
+        function runAfricanPortScan() {
+            const target = document.getElementById('activePortScanTarget').value.trim();
+            if (!target) {
+                showError('Veuillez entrer une cible (domaine ou IP)');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('activePortScanResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; color: #666;">Scan africain en cours...</div>';
+
+            fetch('/api/inmux/active-port-scan-african', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ target })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayPortScanResults(data.result, true);
+                } else {
+                    resultsDiv.innerHTML = `<div style="color: #d32f2f; padding: 10px; background: #ffebee; border-radius: 5px;">Erreur: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = `<div style="color: #d32f2f; padding: 10px; background: #ffebee; border-radius: 5px;">Erreur: ${error.message}</div>`;
+            });
+        }
+
+        function displayPortScanResults(result, isAfrican) {
+            const resultsDiv = document.getElementById('activePortScanResults');
+            
+            if (isAfrican && typeof result === 'object') {
+                // Display African-focused scan results
+                const africanPortsHtml = Object.values(result.african_ports || {}).map(port => `
+                    <tr style="${port.weight >= 25 ? 'background: #fff3cd;' : ''}">
+                        <td><strong>${port.port}</strong></td>
+                        <td>${port.state}</td>
+                        <td>${port.service}</td>
+                        <td>${escapeHtml(port.reason)}</td>
+                        <td>${port.weight}</td>
+                        <td>${port.category}</td>
+                    </tr>
+                `).join('');
+
+                const standardPortsHtml = Object.values(result.standard_ports || {}).map(port => `
+                    <tr>
+                        <td>${port.port}</td>
+                        <td>${port.state}</td>
+                        <td>${port.service}</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>standard</td>
+                    </tr>
+                `).join('');
+
+                resultsDiv.innerHTML = `
+                    <div style="margin-bottom: 15px;">
+                        <strong>Target:</strong> ${escapeHtml(result.target)}<br>
+                        <strong>Ports Africains:</strong> ${result.total_african_ports}<br>
+                        <strong>Ports Standard:</strong> ${result.total_standard_ports}<br>
+                        <strong>Ports à Haut Risque:</strong> ${result.high_risk_ports?.length || 0}
+                    </div>
+                    ${result.african_ports && Object.keys(result.african_ports).length > 0 ? `
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-weight: bold; margin-bottom: 10px; color: #f5576c;">Ports Spécifiques à l'Afrique / Proxy / VPN:</div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Port</th>
+                                            <th>État</th>
+                                            <th>Service</th>
+                                            <th>Raison</th>
+                                            <th>Poids</th>
+                                            <th>Catégorie</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${africanPortsHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${result.standard_ports && Object.keys(result.standard_ports).length > 0 ? `
+                        <div>
+                            <div style="font-weight: bold; margin-bottom: 10px;">Ports Standard:</div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Port</th>
+                                            <th>État</th>
+                                            <th>Service</th>
+                                            <th>Raison</th>
+                                            <th>Poids</th>
+                                            <th>Catégorie</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${standardPortsHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+            } else {
+                // Display raw scan results
+                resultsDiv.innerHTML = `
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; max-height: 400px; overflow-y: auto;">
+                        ${escapeHtml(typeof result === 'string' ? result : JSON.stringify(result, null, 2))}
+                    </div>
+                `;
+            }
+        }
+
+        function runINMUX() {
+            const target = document.getElementById('inmuxTarget').value;
+            const tool = document.getElementById('inmuxTool').value;
+
+            if (!target) {
+                showError('Veuillez entrer une cible (domaine ou IP)');
+                return;
+            }
+
+            const output = document.getElementById('inmuxOutput');
+            output.textContent = 'Analyse en cours...';
+
+            const endpointMap = {
+                'dns': '/api/inmux/dns',
+                'reverse-dns': '/api/inmux/reverse-dns',
+                'whois': '/api/inmux/whois',
+                'geoip': '/api/inmux/geoip',
+                'host-finder': '/api/inmux/host-finder',
+                'http-headers': '/api/inmux/http-headers',
+                'host-dns': '/api/inmux/host-dns',
+                'port-scan': '/api/inmux/port-scan',
+                'subnet': '/api/inmux/subnet',
+                'zone-transfer': '/api/inmux/zone-transfer',
+                'extract-links': '/api/inmux/extract-links'
+            };
+
+            const endpoint = endpointMap[tool];
+            if (!endpoint) {
+                showError('Outil non reconnu');
+                return;
+            }
+
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ target: target })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    output.textContent = data.result;
+                } else {
+                    output.textContent = 'Erreur: ' + data.error;
+                }
+            })
+            .catch(error => {
+                output.textContent = 'Erreur: ' + error.message;
+            });
+        }
+
+        // ==================== HISTORY FUNCTIONS ====================
+
+        function saveCurrentAnalysis() {
+            const analysisData = refreshCurrentAnalysisData();
+
+            if (!analysisData) {
+                showError('Aucune analyse en cours à sauvegarder');
+                return;
+            }
+
+            const filename = currentAnalysisFilename || (currentFile ? currentFile.name : 'analysis.har');
+            const file_size = currentFile ? currentFile.size : currentAnalysisFileSize;
+            const metadata = {
+                saved_at: new Date().toISOString(),
+                browser: navigator.userAgent
+            };
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch('/api/history/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    filename,
+                    file_size,
+                    analysis_data: analysisData,
+                    metadata
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                if (data.success) {
+                    alert(`Analyse sauvegardée avec succès! (ID: ${data.analysis_id})`);
+                    debugLog('Analysis saved:', data);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors de la sauvegarde: ' + error.message);
+            });
+        }
+
+        function loadHistory() {
+            fetch('/api/history/list?limit=50')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayHistory(data.analyses, data.statistics);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                showError('Erreur lors du chargement de l\'historique: ' + error.message);
+            });
+        }
+
+        function displayHistory(analyses, stats) {
+            const tableBody = document.getElementById('historyTable');
+            const statsDiv = document.getElementById('historyStats');
+
+            statsDiv.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                        <div style="font-size: 2em; font-weight: bold; color: #667eea;">${stats.total_analyses}</div>
+                        <div style="color: #666;">Total Analyses</div>
+                    </div>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                        <div style="font-size: 2em; font-weight: bold; color: #f5576c;">${stats.free_surf_detected}</div>
+                        <div style="color: #666;">Free Surf Détecté</div>
+                    </div>
+                    <div style="background: #d4edda; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                        <div style="font-size: 2em; font-weight: bold; color: #28a745;">${stats.avg_security_score}</div>
+                        <div style="color: #666;">Score Moyen</div>
+                    </div>
+                </div>
+            `;
+
+            if (analyses.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">Aucune analyse sauvegardée</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = analyses.map(analysis => `
+                <tr style="${analysis.free_surf_detected ? 'background: #fff3cd;' : ''}">
+                    <td><strong>#${analysis.id}</strong></td>
+                    <td>${escapeHtml(analysis.filename)}</td>
+                    <td>${new Date(analysis.created_at).toLocaleString('fr-FR')}</td>
+                    <td>${analysis.total_requests}</td>
+                    <td>${analysis.total_domains}</td>
+                    <td>
+                        <span style="padding: 5px 10px; border-radius: 5px; background: ${getScoreColor(analysis.security_score)}; color: white;">
+                            ${analysis.security_score} (${analysis.security_grade})
+                        </span>
+                    </td>
+                    <td>
+                        ${analysis.free_surf_detected 
+                            ? `<span style="color: #d32f2f; font-weight: bold;">Oui (${analysis.free_surf_score})</span>` 
+                            : '<span style="color: #388e3c;">Non</span>'}
+                    </td>
+                    <td>
+                        <button onclick="loadAnalysis(${analysis.id})" style="padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 5px;">
+                            📂 Charger
+                        </button>
+                        <button onclick="deleteAnalysis(${analysis.id})" style="padding: 5px 10px; background: #d32f2f; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            🗑️
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function searchHistory() {
+            const query = document.getElementById('historySearch').value.trim();
+            if (!query) {
+                loadHistory();
+                return;
+            }
+
+            fetch(`/api/history/search?query=${encodeURIComponent(query)}&limit=50`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayHistory(data.analyses, { total_analyses: data.analyses.length, free_surf_detected: 0, avg_security_score: 0 });
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                showError('Erreur lors de la recherche: ' + error.message);
+            });
+        }
+
+        function loadAnalysis(analysisId) {
+            if (!confirm('Voulez-vous charger cette analyse? L\'analyse actuelle sera remplacée.')) {
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+
+            fetch(`/api/history/${analysisId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                if (data.success) {
+                    currentFile = null;
+                    currentAnalysisFilename = data.analysis.filename;
+                    currentAnalysisFileSize = data.analysis.file_size || 0;
+                    restoreSavedAnalysis(data.analysis.analysis_data);
+                    alert(`Analyse #${analysisId} chargée avec succès!`);
+                    debugLog('Analysis loaded:', data.analysis);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('active');
+                showError('Erreur lors du chargement: ' + error.message);
+            });
+        }
+
+        function deleteAnalysis(analysisId) {
+            if (!confirm('Voulez-vous vraiment supprimer cette analyse?')) {
+                return;
+            }
+
+            fetch(`/api/history/${analysisId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Analyse supprimée avec succès');
+                    loadHistory();
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                showError('Erreur lors de la suppression: ' + error.message);
+            });
+        }
+
+        function getScoreColor(score) {
+            if (score >= 80) return '#28a745';
+            if (score >= 60) return '#ffc107';
+            if (score >= 40) return '#fd7e14';
+            return '#dc3545';
+        }
+
+    </script>
+</body>
+</html>

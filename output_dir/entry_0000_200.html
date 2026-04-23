@@ -1,0 +1,51 @@
+<!DOCTYPE html><html lang=""><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google" content="notranslate"><script>let ehtag = getCookie('ehtag');
+        window.dataLayer = window.dataLayer || [];
+        dataLayer.push({
+        'user_id': ehtag,
+        'login': ehtag ? 'yes' : 'no',
+        'event': 'loginready'
+        });
+        function getCookie(cname) {
+            var name = cname + "=";
+            var decodedCookie = decodeURIComponent(document.cookie);
+            var ca = decodedCookie.split(';');
+            for(var i = 0; i <ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                return c.substring(name.length, c.length);
+                }
+            }
+            return "";
+        }</script><script>(function() {
+          var didInit = false;
+          function initMunchkin() {
+            if(didInit === false) {
+              didInit = true;
+              Munchkin.init('977-HMR-161');
+            }
+          }
+          var s = document.createElement('script');
+          s.type = 'text/javascript';
+          s.async = true;
+          s.src = '//munchkin.marketo.net/munchkin.js';
+          s.onreadystatechange = function() {
+            if (this.readyState == 'complete' || this.readyState == 'loaded') {
+              initMunchkin();
+            }
+          };
+          s.onload = initMunchkin;
+          document.getElementsByTagName('head')[0].appendChild(s);
+        })();</script><script>(function(c,h,a,f,i,l,e){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    c[a].a=i;c[a].l=l;c[a].e=e;var g=h.createElement("script");g.async=true;g.type="text/javascript";
+    g.src=f+'?aid='+i;var b=h.getElementsByTagName("script")[0];b.parentNode.insertBefore(g,b);
+    })(window,document,"rtp","//sjrtp2-cdn.marketo.com/rtp-api/v1/rtp.js","konami");
+      
+    rtp('send','view');
+    rtp('get', 'campaign',true);</script><script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','GTM-PCP56SG');</script><link rel="icon" href="https://efootball-point-cdn.konami.net/front/public/favicon.ico"><title>eFootball™ Points Official Website</title><link href="https://efootball-point-cdn.konami.net/front/static/css/campaigns.aee352ad.css" rel="prefetch"><link href="https://efootball-point-cdn.konami.net/front/static/css/common.46b57380.css" rel="prefetch"><link href="https://efootball-point-cdn.konami.net/front/static/js/campaigns.6729c1d3.js" rel="prefetch"><link href="https://efootball-point-cdn.konami.net/front/static/js/common.fb62e964.js" rel="prefetch"><link href="https://efootball-point-cdn.konami.net/front/static/css/chunk-vendors.6b8f03ea.css" rel="preload" as="style"><link href="https://efootball-point-cdn.konami.net/front/static/css/index.f9b7698f.css" rel="preload" as="style"><link href="https://efootball-point-cdn.konami.net/front/static/js/chunk-vendors.70c3210f.js" rel="preload" as="script"><link href="https://efootball-point-cdn.konami.net/front/static/js/index.c38a1631.js" rel="preload" as="script"><link href="https://efootball-point-cdn.konami.net/front/static/css/chunk-vendors.6b8f03ea.css" rel="stylesheet"><link href="https://efootball-point-cdn.konami.net/front/static/css/index.f9b7698f.css" rel="stylesheet"></head><body><noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PCP56SG" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><noscript><strong>We're sorry but eFootball™ Points Official Website doesn't work properly without JavaScript enabled. Please enable it to continue.</strong></noscript><div id="app"></div><script src="https://efootball-point-cdn.konami.net/front/static/js/chunk-vendors.70c3210f.js"></script><script src="https://efootball-point-cdn.konami.net/front/static/js/index.c38a1631.js"></script></body></html>
